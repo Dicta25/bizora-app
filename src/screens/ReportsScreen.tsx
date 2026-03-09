@@ -3,13 +3,12 @@ import { useApp } from '@/context/AppContext';
 import { formatCurrency } from '@/lib/format';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { motion } from 'framer-motion';
-import { Lock, Sparkles } from 'lucide-react';
+import { Lock, Crown } from 'lucide-react';
 
 export default function ReportsScreen() {
   const { sales, expenses } = useApp();
   const [period, setPeriod] = useState<'week' | 'month'>('week');
 
-  const now = new Date();
   const cutoff = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() - (period === 'week' ? 7 : 30));
@@ -23,7 +22,6 @@ export default function ReportsScreen() {
   const totalExpenses = filteredExpenses.reduce((s, x) => s + x.amount, 0);
   const profit = totalSales - totalExpenses;
 
-  // Chart data - daily
   const chartData = useMemo(() => {
     const days = period === 'week' ? 7 : 30;
     const data = [];
@@ -39,7 +37,6 @@ export default function ReportsScreen() {
     return data;
   }, [sales, expenses, period]);
 
-  // Expense breakdown
   const expenseBreakdown = useMemo(() => {
     const map: Record<string, number> = {};
     filteredExpenses.forEach(e => { map[e.category] = (map[e.category] || 0) + e.amount; });
@@ -70,17 +67,17 @@ export default function ReportsScreen() {
 
       {/* Summary Cards */}
       <motion.div variants={{ hidden: {}, show: { transition: { staggerChildren: 0.1 } } }} initial="hidden" animate="show" className="grid grid-cols-3 gap-3 mb-6">
-        <motion.div variants={fadeUp} className="stat-card bg-primary/10 border-primary/20 kente-border">
-          <p className="text-xs font-medium text-muted-foreground mb-1">Sales</p>
-          <p className="text-base font-extrabold text-primary currency">{formatCurrency(totalSales)}</p>
+        <motion.div variants={fadeUp} className="stat-card bg-primary kente-border">
+          <p className="text-xs font-medium text-primary-foreground/70 mb-1">💰 Sales</p>
+          <p className="text-base font-extrabold text-primary-foreground currency">{formatCurrency(totalSales)}</p>
         </motion.div>
-        <motion.div variants={fadeUp} className="stat-card bg-destructive/10 border-destructive/20 kente-border">
-          <p className="text-xs font-medium text-muted-foreground mb-1">Expenses</p>
-          <p className="text-base font-extrabold text-destructive currency">{formatCurrency(totalExpenses)}</p>
+        <motion.div variants={fadeUp} className="stat-card bg-destructive kente-border">
+          <p className="text-xs font-medium text-destructive-foreground/70 mb-1">💸 Expenses</p>
+          <p className="text-base font-extrabold text-destructive-foreground currency">{formatCurrency(totalExpenses)}</p>
         </motion.div>
-        <motion.div variants={fadeUp} className={`stat-card border kente-border ${profit >= 0 ? 'bg-primary/10 border-primary/20' : 'bg-destructive/10 border-destructive/20'}`}>
-          <p className="text-xs font-medium text-muted-foreground mb-1">Profit</p>
-          <p className={`text-base font-extrabold currency ${profit >= 0 ? 'text-primary' : 'text-destructive'}`}>{formatCurrency(profit)}</p>
+        <motion.div variants={fadeUp} className={`stat-card kente-border ${profit >= 0 ? 'bg-primary' : 'bg-destructive'}`}>
+          <p className={`text-xs font-medium mb-1 ${profit >= 0 ? 'text-primary-foreground/70' : 'text-destructive-foreground/70'}`}>📈 Profit</p>
+          <p className={`text-base font-extrabold currency ${profit >= 0 ? 'text-primary-foreground' : 'text-destructive-foreground'}`}>{formatCurrency(profit)}</p>
         </motion.div>
       </motion.div>
 
@@ -113,18 +110,31 @@ export default function ReportsScreen() {
         </div>
       )}
 
-      {/* AI Insights Teaser */}
-      <div className="relative rounded-xl border border-accent/30 bg-accent/5 p-5 overflow-hidden">
-        <div className="absolute inset-0 backdrop-blur-[1px]" />
-        <div className="relative flex items-start gap-3 opacity-60">
-          <Sparkles size={24} className="text-accent mt-0.5" />
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-bold text-foreground">AI Insights</h3>
-              <Lock size={14} className="text-muted-foreground" />
-            </div>
-            <p className="text-sm text-muted-foreground">Smart tips for your business. Coming soon in Bizora Pro ✨</p>
+      {/* Bizora Pro Teaser Card */}
+      <div className="relative rounded-xl bg-primary p-5 overflow-hidden" style={{ border: '2px solid hsl(37, 89%, 51%)' }}>
+        <div className="absolute inset-0 backdrop-blur-[2px] pointer-events-none" />
+        <div className="relative">
+          <div className="flex items-center gap-2 mb-2">
+            <Crown size={20} className="text-accent" />
+            <h3 className="font-extrabold text-primary-foreground text-lg">Bizora Pro ✨</h3>
           </div>
+          <p className="text-sm text-primary-foreground/80 mb-4">Unlock AI insights, sales forecasts & WhatsApp reports</p>
+
+          <div className="space-y-2.5 mb-4 opacity-70">
+            <div className="flex items-center gap-2 text-sm text-primary-foreground/90">
+              <Lock size={14} className="text-accent" /> <span>Daily AI tip for your business</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-primary-foreground/90">
+              <Lock size={14} className="text-accent" /> <span>Weekly profit forecast</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-primary-foreground/90">
+              <Lock size={14} className="text-accent" /> <span>Send report to WhatsApp</span>
+            </div>
+          </div>
+
+          <span className="inline-block bg-accent text-accent-foreground text-xs font-bold px-3 py-1 rounded-full">
+            Coming Soon
+          </span>
         </div>
       </div>
     </div>

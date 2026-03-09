@@ -28,10 +28,14 @@ export default function OnboardingScreen() {
       >
         {/* Logo */}
         <div className="text-center mb-10">
-          <h1 className="text-4xl font-extrabold tracking-tight text-foreground">
+          <h1 className="text-[48px] font-[900] tracking-tight text-foreground">
             Bizora
           </h1>
-          <div className="mx-auto mt-2 h-1 w-20 rounded-full bg-gradient-to-r from-primary via-accent to-destructive" />
+          <div className="mx-auto mt-2 flex justify-center gap-0">
+            <div className="h-[5px] w-7 rounded-l-full bg-primary" />
+            <div className="h-[5px] w-7 bg-accent" />
+            <div className="h-[5px] w-7 rounded-r-full bg-destructive" />
+          </div>
           <p className="mt-3 text-muted-foreground text-sm">Track your business, grow your profit</p>
         </div>
 
