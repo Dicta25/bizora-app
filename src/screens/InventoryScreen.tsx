@@ -46,12 +46,12 @@ export default function InventoryScreen() {
             <motion.div
               key={p.id}
               layout
-              className="bg-card rounded-xl border p-4 kente-border"
+              className="bg-card rounded-xl border p-4 kente-border border-l-[3px] border-l-primary"
             >
               <div className="flex items-center justify-between mb-2">
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-foreground truncate">{p.name}</p>
-                  <p className="text-sm text-muted-foreground currency">{formatCurrency(p.price)} / unit</p>
+                  <p className="font-bold text-foreground truncate text-[17px]">{p.name}</p>
+                  <p className="text-sm text-primary currency font-medium">{formatCurrency(p.price)} / unit</p>
                 </div>
                 <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${stockColor(p.stock)}`}>
                   {stockLabel(p.stock)}
