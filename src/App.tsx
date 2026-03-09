@@ -1,27 +1,41 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import Index from "./pages/Index.tsx";
-import NotFound from "./pages/NotFound.tsx";
+import { AppProvider, useApp } from "./context/AppContext";
+import OnboardingScreen from "./screens/OnboardingScreen";
+import DashboardScreen from "./screens/DashboardScreen";
+import RecordSaleScreen from "./screens/RecordSaleScreen";
+import RecordExpenseScreen from "./screens/RecordExpenseScreen";
+import InventoryScreen from "./screens/InventoryScreen";
+import ReportsScreen from "./screens/ReportsScreen";
+import BottomNav from "./components/BottomNav";
 
-const queryClient = new QueryClient();
+function AppRoutes() {
+  const { user } = useApp();
+
+  if (!user) return <OnboardingScreen />;
+
+  return (
+    <div className="max-w-md mx-auto min-h-screen bg-background">
+      <Routes>
+        <Route path="/" element={<DashboardScreen />} />
+        <Route path="/record/sale" element={<RecordSaleScreen />} />
+        <Route path="/record/expense" element={<RecordExpenseScreen />} />
+        <Route path="/inventory" element={<InventoryScreen />} />
+        <Route path="/reports" element={<ReportsScreen />} />
+        <Route path="*" element={<DashboardScreen />} />
+      </Routes>
+      <BottomNav />
+    </div>
+  );
+}
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
+  <AppProvider>
+    <Sonner />
+    <BrowserRouter>
+      <AppRoutes />
+    </BrowserRouter>
+  </AppProvider>
 );
 
 export default App;
