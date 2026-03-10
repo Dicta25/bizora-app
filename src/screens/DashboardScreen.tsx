@@ -1,10 +1,12 @@
 import { useApp } from '@/context/AppContext';
 import { formatCurrency, formatCompact } from '@/lib/format';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Receipt, Package, Moon, Sun } from 'lucide-react';
+import { TrendingUp, TrendingDown, Receipt, Package, Moon, Sun, Menu } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReceiptSheet from '@/components/ReceiptSheet';
+import AppDrawer from '@/components/AppDrawer';
+import PWAInstallBanner from '@/components/PWAInstallBanner';
 import type { Sale } from '@/context/AppContext';
 
 function AmountPopup({ amount, onClose }: { amount: number; onClose: () => void }) {
@@ -32,6 +34,7 @@ export default function DashboardScreen() {
   const [popupAmount, setPopupAmount] = useState<number | null>(null);
   const [editingFloat, setEditingFloat] = useState(false);
   const [floatInput, setFloatInput] = useState('');
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const totalSales = useMemo(() => sales.reduce((s, x) => s + x.totalPrice, 0), [sales]);
   const totalExpenses = useMemo(() => expenses.reduce((s, x) => s + x.amount, 0), [expenses]);
@@ -78,13 +81,24 @@ export default function DashboardScreen() {
 
   return (
     <div className="px-4 pt-6 pb-24">
+      {/* Drawer */}
+      <AppDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+
       {/* Header */}
       <div className="mb-4 flex items-start justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-foreground">
-            {greeting}, {user?.businessName?.split("'")[0] || 'Boss'} 👋
-          </h2>
-          <p className="text-sm text-muted-foreground">{todayDate}</p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setDrawerOpen(true)}
+            className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center tap-target"
+          >
+            <Menu size={20} className="text-foreground" />
+          </button>
+          <div>
+            <h2 className="text-xl font-bold text-foreground">
+              {greeting}, {user?.businessName?.split("'")[0] || 'Boss'} 👋
+            </h2>
+            <p className="text-sm text-muted-foreground">{todayDate}</p>
+          </div>
         </div>
         <button
           onClick={toggleDarkMode}
@@ -208,6 +222,9 @@ export default function DashboardScreen() {
 
       {/* Amount Popup */}
       {popupAmount !== null && <AmountPopup amount={popupAmount} onClose={() => setPopupAmount(null)} />}
+
+      {/* PWA Install Banner */}
+      <PWAInstallBanner />
     </div>
   );
 }
