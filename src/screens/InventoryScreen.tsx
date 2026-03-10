@@ -1,21 +1,49 @@
 import { useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { formatCurrency } from '@/lib/format';
-import { Plus, Minus, Trash2, Package } from 'lucide-react';
+import { Plus, Minus, Trash2, Package, Camera, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+function ImageViewer({ src, onClose }: { src: string; onClose: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-foreground/80 z-50 flex items-center justify-center p-6"
+      onClick={onClose}
+    >
+      <button onClick={onClose} className="absolute top-4 right-4 text-primary-foreground z-50">
+        <X size={28} />
+      </button>
+      <img src={src} alt="Product" className="max-w-full max-h-full rounded-xl object-contain" />
+    </motion.div>
+  );
+}
+
 export default function InventoryScreen() {
-  const { products, addProduct, updateProductStock, deleteProduct } = useApp();
+  const { products, addProduct, updateProductStock, deleteProduct, lowStockProducts } = useApp();
   const [showModal, setShowModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [newStock, setNewStock] = useState('');
   const [newPrice, setNewPrice] = useState('');
+  const [newImage, setNewImage] = useState<string | undefined>(undefined);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [viewImage, setViewImage] = useState<string | null>(null);
+  const [showLowStockBanner, setShowLowStockBanner] = useState(true);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setNewImage(reader.result as string);
+    reader.readAsDataURL(file);
+  };
 
   const handleAdd = () => {
     if (!newName || !newStock || !newPrice) return;
-    addProduct({ name: newName, stock: parseInt(newStock), price: parseFloat(newPrice) });
-    setNewName(''); setNewStock(''); setNewPrice('');
+    addProduct({ name: newName, stock: parseInt(newStock), price: parseFloat(newPrice), image: newImage });
+    setNewName(''); setNewStock(''); setNewPrice(''); setNewImage(undefined);
     setShowModal(false);
   };
 
@@ -32,7 +60,26 @@ export default function InventoryScreen() {
 
   return (
     <div className="px-4 pt-6 pb-24 relative">
-      <h1 className="text-2xl font-extrabold mb-6 text-foreground">Inventory</h1>
+      <h1 className="text-2xl font-extrabold mb-4 text-foreground">Inventory</h1>
+
+      {/* Low Stock Banner */}
+      {showLowStockBanner && lowStockProducts.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-4 rounded-xl bg-destructive text-destructive-foreground px-4 py-3 text-sm font-semibold flex items-start justify-between gap-2"
+        >
+          <div>
+            ⚠️ Low stock:{' '}
+            {lowStockProducts.map((p, i) => (
+              <span key={p.id}>
+                {p.name} has only {p.stock} left{i < lowStockProducts.length - 1 ? ', ' : '!'}
+              </span>
+            ))}
+          </div>
+          <button onClick={() => setShowLowStockBanner(false)} className="shrink-0 font-bold text-destructive-foreground/80">✕</button>
+        </motion.div>
+      )}
 
       {products.length === 0 ? (
         <div className="text-center py-16">
@@ -48,7 +95,20 @@ export default function InventoryScreen() {
               layout
               className="bg-card rounded-xl border p-4 kente-border border-l-[3px] border-l-primary"
             >
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-3 mb-2">
+                {/* Product thumbnail */}
+                {p.image ? (
+                  <button
+                    onClick={() => setViewImage(p.image!)}
+                    className="w-12 h-12 rounded-lg overflow-hidden shrink-0 border"
+                  >
+                    <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                  </button>
+                ) : (
+                  <div className="w-12 h-12 rounded-lg bg-secondary flex items-center justify-center shrink-0 border">
+                    <Camera size={18} className="text-muted-foreground" />
+                  </div>
+                )}
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-foreground truncate text-[17px]">{p.name}</p>
                   <p className="text-sm text-primary currency font-medium">{formatCurrency(p.price)} / unit</p>
@@ -109,10 +169,30 @@ export default function InventoryScreen() {
               exit={{ y: 300 }}
               transition={{ type: 'spring', damping: 25 }}
               onClick={e => e.stopPropagation()}
-              className="w-full max-w-md bg-card rounded-t-2xl p-6 max-h-[70vh]"
+              className="w-full max-w-md bg-card rounded-t-2xl p-6 max-h-[70vh] overflow-y-auto"
             >
               <h2 className="text-xl font-extrabold mb-5 text-foreground">Add Product</h2>
               <div className="space-y-4">
+                {/* Image Upload */}
+                <div>
+                  <label className="block text-sm font-semibold mb-1.5 text-foreground">Photo (optional)</label>
+                  <div className="flex items-center gap-3">
+                    {newImage ? (
+                      <div className="relative w-16 h-16 rounded-lg overflow-hidden border">
+                        <img src={newImage} alt="Preview" className="w-full h-full object-cover" />
+                        <button
+                          onClick={() => setNewImage(undefined)}
+                          className="absolute top-0 right-0 bg-destructive text-destructive-foreground rounded-bl-lg w-5 h-5 flex items-center justify-center text-xs"
+                        >✕</button>
+                      </div>
+                    ) : (
+                      <label className="w-16 h-16 rounded-lg border-2 border-dashed border-input flex items-center justify-center cursor-pointer hover:border-primary transition-colors">
+                        <Camera size={22} className="text-muted-foreground" />
+                        <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                      </label>
+                    )}
+                  </div>
+                </div>
                 <input
                   type="text"
                   placeholder="Product name"
@@ -184,6 +264,11 @@ export default function InventoryScreen() {
             </motion.div>
           </motion.div>
         )}
+      </AnimatePresence>
+
+      {/* Full-screen image viewer */}
+      <AnimatePresence>
+        {viewImage && <ImageViewer src={viewImage} onClose={() => setViewImage(null)} />}
       </AnimatePresence>
     </div>
   );

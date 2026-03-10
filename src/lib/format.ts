@@ -2,6 +2,14 @@ export function formatCurrency(amount: number): string {
   return `GH₵ ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+export function formatCompact(amount: number): string {
+  const abs = Math.abs(amount);
+  if (abs >= 1_000_000) return `GH₵ ${(amount / 1_000_000).toFixed(1)}M`;
+  if (abs >= 10_000) return `GH₵ ${Math.round(amount / 1_000)}K`;
+  if (abs >= 1_000) return `GH₵ ${(amount / 1_000).toFixed(1)}K`;
+  return formatCurrency(amount);
+}
+
 export function formatDate(isoString: string): string {
   const date = new Date(isoString);
   const now = new Date();

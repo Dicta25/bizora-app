@@ -13,6 +13,7 @@ export interface Product {
   name: string;
   stock: number;
   price: number;
+  image?: string; // base64
 }
 
 export interface Sale {
@@ -32,12 +33,19 @@ export interface Expense {
   date: string;
 }
 
+export interface CashFloat {
+  date: string; // YYYY-MM-DD
+  openingCash: number;
+}
+
 interface AppState {
   user: User | null;
   products: Product[];
   sales: Sale[];
   expenses: Expense[];
   isDemo: boolean;
+  cashFloat: CashFloat | null;
+  darkMode: boolean;
 }
 
 interface AppContextType extends AppState {
@@ -49,6 +57,9 @@ interface AppContextType extends AppState {
   addExpense: (expense: Omit<Expense, 'id'>) => void;
   enterDemoMode: () => void;
   logout: () => void;
+  setCashFloat: (amount: number) => void;
+  toggleDarkMode: () => void;
+  lowStockProducts: Product[];
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -59,6 +70,10 @@ function daysAgo(n: number) {
   const d = new Date();
   d.setDate(d.getDate() - n);
   return d.toISOString();
+}
+
+function todayKey() {
+  return new Date().toISOString().split('T')[0];
 }
 
 const MOCK_USER: User = {
@@ -94,9 +109,12 @@ const MOCK_EXPENSES: Expense[] = [
 function loadState(): AppState {
   try {
     const raw = localStorage.getItem('bizora_state');
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return { ...parsed, darkMode: parsed.darkMode ?? false, cashFloat: parsed.cashFloat ?? null };
+    }
   } catch {}
-  return { user: null, products: [], sales: [], expenses: [], isDemo: false };
+  return { user: null, products: [], sales: [], expenses: [], isDemo: false, cashFloat: null, darkMode: false };
 }
 
 function saveState(state: AppState) {
@@ -109,6 +127,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     saveState(state);
   }, [state]);
+
+  // Apply dark mode class
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', state.darkMode);
+  }, [state.darkMode]);
 
   const setUser = useCallback((user: User) => {
     setState(prev => ({ ...prev, user }));
@@ -137,6 +160,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setState(prev => ({ ...prev, expenses: [{ ...expense, id: uid() }, ...prev.expenses] }));
   }, []);
 
+  const setCashFloat = useCallback((amount: number) => {
+    setState(prev => ({ ...prev, cashFloat: { date: todayKey(), openingCash: amount } }));
+  }, []);
+
+  const toggleDarkMode = useCallback(() => {
+    setState(prev => ({ ...prev, darkMode: !prev.darkMode }));
+  }, []);
+
   const enterDemoMode = useCallback(() => {
     setState({
       user: MOCK_USER,
@@ -144,16 +175,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       sales: MOCK_SALES,
       expenses: MOCK_EXPENSES,
       isDemo: true,
+      cashFloat: { date: todayKey(), openingCash: 500 },
+      darkMode: false,
     });
   }, []);
 
   const logout = useCallback(() => {
     localStorage.removeItem('bizora_state');
-    setState({ user: null, products: [], sales: [], expenses: [], isDemo: false });
+    setState({ user: null, products: [], sales: [], expenses: [], isDemo: false, cashFloat: null, darkMode: false });
   }, []);
 
+  const lowStockProducts = state.products.filter(p => p.stock <= 5 && p.stock > 0);
+
   return (
-    <AppContext.Provider value={{ ...state, setUser, addProduct, updateProductStock, deleteProduct, addSale, addExpense, enterDemoMode, logout }}>
+    <AppContext.Provider value={{ ...state, setUser, addProduct, updateProductStock, deleteProduct, addSale, addExpense, enterDemoMode, logout, setCashFloat, toggleDarkMode, lowStockProducts }}>
       {children}
     </AppContext.Provider>
   );
