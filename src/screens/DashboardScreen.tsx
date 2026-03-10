@@ -81,13 +81,24 @@ export default function DashboardScreen() {
 
   return (
     <div className="px-4 pt-6 pb-24">
+      {/* Drawer */}
+      <AppDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+
       {/* Header */}
       <div className="mb-4 flex items-start justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-foreground">
-            {greeting}, {user?.businessName?.split("'")[0] || 'Boss'} 👋
-          </h2>
-          <p className="text-sm text-muted-foreground">{todayDate}</p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setDrawerOpen(true)}
+            className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center tap-target"
+          >
+            <Menu size={20} className="text-foreground" />
+          </button>
+          <div>
+            <h2 className="text-xl font-bold text-foreground">
+              {greeting}, {user?.businessName?.split("'")[0] || 'Boss'} 👋
+            </h2>
+            <p className="text-sm text-muted-foreground">{todayDate}</p>
+          </div>
         </div>
         <button
           onClick={toggleDarkMode}
