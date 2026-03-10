@@ -222,6 +222,9 @@ export default function DashboardScreen() {
 
       {/* Amount Popup */}
       {popupAmount !== null && <AmountPopup amount={popupAmount} onClose={() => setPopupAmount(null)} />}
+
+      {/* PWA Install Banner */}
+      <PWAInstallBanner />
     </div>
   );
 }
