@@ -34,6 +34,7 @@ export default function DashboardScreen() {
   const [popupAmount, setPopupAmount] = useState<number | null>(null);
   const [editingFloat, setEditingFloat] = useState(false);
   const [floatInput, setFloatInput] = useState('');
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const totalSales = useMemo(() => sales.reduce((s, x) => s + x.totalPrice, 0), [sales]);
   const totalExpenses = useMemo(() => expenses.reduce((s, x) => s + x.amount, 0), [expenses]);
