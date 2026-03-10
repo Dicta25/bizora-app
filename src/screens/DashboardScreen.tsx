@@ -1,10 +1,12 @@
 import { useApp } from '@/context/AppContext';
 import { formatCurrency, formatCompact } from '@/lib/format';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Receipt, Package, Moon, Sun } from 'lucide-react';
+import { TrendingUp, TrendingDown, Receipt, Package, Moon, Sun, Menu } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReceiptSheet from '@/components/ReceiptSheet';
+import AppDrawer from '@/components/AppDrawer';
+import PWAInstallBanner from '@/components/PWAInstallBanner';
 import type { Sale } from '@/context/AppContext';
 
 function AmountPopup({ amount, onClose }: { amount: number; onClose: () => void }) {
