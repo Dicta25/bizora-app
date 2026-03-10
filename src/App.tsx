@@ -29,13 +29,15 @@ function AppRoutes() {
   );
 }
 
-const App = () => (
-  <AppProvider>
-    <Sonner />
-    <BrowserRouter>
-      <AppRoutes />
-    </BrowserRouter>
-  </AppProvider>
-);
+function App() {
+  return (
+    <AppProvider>
+      <Sonner />
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
+    </AppProvider>
+  );
+}
 
 export default App;
