@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { formatCurrency, formatCompact } from '@/lib/format';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
@@ -16,28 +16,19 @@ function generateCSV(businessName: string, sales: any[], expenses: any[], dateRa
   lines.push('');
   lines.push('--- SALES ---');
   lines.push('Date,Product,Quantity,Price/Unit,Total,Payment');
-  sales.forEach(s => {
+  sales.forEach((s: any) => {
     lines.push(`${s.date.split('T')[0]},${s.productName},${s.quantity},${s.pricePerUnit},${s.totalPrice},${s.paymentMethod || 'cash'}`);
   });
   lines.push('');
   lines.push('--- EXPENSES ---');
   lines.push('Date,Description,Category,Amount');
-  expenses.forEach(e => {
+  expenses.forEach((e: any) => {
     lines.push(`${e.date.split('T')[0]},${e.description},${e.category},${e.amount}`);
   });
   return lines.join('\n');
 }
 
 export default function ReportsScreen() {
-  const { sales, expenses, user } = useApp();
-  const [period, setPeriod] = useMemo(() => ['week' as const, () => {}], []);
-  // Actually need state:
-  const { useState } = require('react');
-
-  return <ReportsScreenInner />;
-}
-
-function ReportsScreenInner() {
   const { sales, expenses, user } = useApp();
   const [period, setPeriod] = useState<'week' | 'month'>('week');
 
@@ -69,7 +60,6 @@ function ReportsScreenInner() {
     return data;
   }, [sales, expenses, period]);
 
-  // Payment method breakdown
   const paymentBreakdown = useMemo(() => {
     const map: Record<string, number> = {};
     filteredSales.forEach(s => { map[s.paymentMethod || 'cash'] = (map[s.paymentMethod || 'cash'] || 0) + s.totalPrice; });
@@ -85,11 +75,10 @@ function ReportsScreenInner() {
     return Object.entries(map).sort((a, b) => b[1] - a[1]);
   }, [filteredExpenses]);
 
-  // Sales Forecast
   const forecast = useMemo(() => {
-    const last7 = [];
     let strongestDay = { name: '', amount: 0 };
     let quietestDay = { name: '', amount: Infinity };
+    const last7: number[] = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
@@ -102,17 +91,17 @@ function ReportsScreenInner() {
     }
     if (quietestDay.amount === Infinity) quietestDay = { name: '', amount: 0 };
     const daysWithData = last7.filter(d => d > 0).length;
-    if (daysWithData < 7) return { amount: 0, enough: false, strongest: strongestDay, quietest: quietestDay };
+    if (daysWithData < 3) return { amount: 0, enough: false, strongest: strongestDay, quietest: quietestDay };
     const avg = last7.reduce((a, b) => a + b, 0) / 7;
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    const dayOfWeek = tomorrow.getDay();
-    let multiplier = 1.0;
-    if (dayOfWeek === 5) multiplier = 1.2;
-    else if (dayOfWeek === 6) multiplier = 1.3;
-    else if (dayOfWeek === 1) multiplier = 0.8;
-    else if (dayOfWeek === 0) multiplier = 0.6;
-    return { amount: avg * multiplier, enough: true, strongest: strongestDay, quietest: quietestDay };
+    const dow = tomorrow.getDay();
+    let mult = 1.0;
+    if (dow === 5) mult = 1.2;
+    else if (dow === 6) mult = 1.3;
+    else if (dow === 1) mult = 0.8;
+    else if (dow === 0) mult = 0.6;
+    return { amount: avg * mult, enough: true, strongest: strongestDay, quietest: quietestDay };
   }, [sales]);
 
   const dateRange = useMemo(() => {
@@ -149,7 +138,6 @@ function ReportsScreenInner() {
     <div className="px-4 pt-6 pb-24">
       <h1 className="text-2xl font-extrabold mb-4 text-foreground">Reports</h1>
 
-      {/* Period Toggle */}
       <div className="flex bg-secondary rounded-full p-1 mb-6">
         <button onClick={() => setPeriod('week')}
           className={`flex-1 h-10 rounded-full font-semibold text-sm transition-all ${period === 'week' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>
@@ -161,7 +149,6 @@ function ReportsScreenInner() {
         </button>
       </div>
 
-      {/* Chart */}
       <div className="bg-card rounded-xl border p-4 mb-6 kente-border">
         <h3 className="font-bold text-sm mb-3 text-foreground">Daily Overview</h3>
         <ResponsiveContainer width="100%" height={180}>
@@ -175,7 +162,6 @@ function ReportsScreenInner() {
         </ResponsiveContainer>
       </div>
 
-      {/* Summary Cards */}
       <motion.div variants={{ hidden: {}, show: { transition: { staggerChildren: 0.1 } } }} initial="hidden" animate="show" className="grid grid-cols-3 gap-3 mb-6">
         <motion.div variants={fadeUp} className="stat-card bg-primary kente-border">
           <p className="text-xs font-medium text-primary-foreground/70 mb-1">Sales</p>
@@ -191,7 +177,6 @@ function ReportsScreenInner() {
         </motion.div>
       </motion.div>
 
-      {/* Payment Breakdown */}
       {Object.keys(paymentBreakdown).length > 0 && (
         <div className="bg-card rounded-xl border p-4 mb-6">
           <h3 className="font-bold text-sm mb-3 text-foreground">Payment Methods</h3>
@@ -206,7 +191,6 @@ function ReportsScreenInner() {
         </div>
       )}
 
-      {/* Expense Breakdown */}
       {expenseBreakdown.length > 0 && (
         <div className="bg-card rounded-xl border p-4 mb-6">
           <h3 className="font-bold text-sm mb-3 text-foreground">Expense Breakdown</h3>
@@ -221,14 +205,13 @@ function ReportsScreenInner() {
         </div>
       )}
 
-      {/* Sales Forecast */}
       <div className="bg-card rounded-xl border p-4 mb-6 border-l-[3px] border-l-primary">
         <h3 className="font-bold text-sm mb-2 text-foreground">Tomorrow's Forecast</h3>
         {forecast.enough ? (
           <>
             <p className="text-2xl font-extrabold text-accent currency mb-1">{formatCurrency(forecast.amount)}</p>
             <p className="text-xs text-muted-foreground mb-2">Based on your last 7 days of sales</p>
-            {forecast.strongest.name && (
+            {forecast.strongest.name && forecast.strongest.amount > 0 && (
               <p className="text-xs text-muted-foreground">Strongest day: {forecast.strongest.name} with {formatCurrency(forecast.strongest.amount)}</p>
             )}
             {forecast.quietest.name && (
@@ -240,7 +223,6 @@ function ReportsScreenInner() {
         )}
       </div>
 
-      {/* Export Buttons */}
       <div className="grid grid-cols-2 gap-3 mb-6">
         <button onClick={handleExportCSV}
           className="h-12 rounded-xl bg-accent text-accent-foreground font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.97] transition-transform tap-target">
