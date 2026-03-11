@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { formatCurrency, formatCompact } from '@/lib/format';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
 import { motion } from 'framer-motion';
-import { Lock, Crown, Download, Share2 } from 'lucide-react';
+import { Download, Share2 } from 'lucide-react';
 
 function generateCSV(businessName: string, sales: any[], expenses: any[], dateRange: string, totalS: number, totalE: number, profit: number) {
   const lines: string[] = [];
@@ -15,9 +15,9 @@ function generateCSV(businessName: string, sales: any[], expenses: any[], dateRa
   lines.push(`Net Profit: ${formatCurrency(profit)}`);
   lines.push('');
   lines.push('--- SALES ---');
-  lines.push('Date,Product,Quantity,Price/Unit,Total');
+  lines.push('Date,Product,Quantity,Price/Unit,Total,Payment');
   sales.forEach(s => {
-    lines.push(`${s.date.split('T')[0]},${s.productName},${s.quantity},${s.pricePerUnit},${s.totalPrice}`);
+    lines.push(`${s.date.split('T')[0]},${s.productName},${s.quantity},${s.pricePerUnit},${s.totalPrice},${s.paymentMethod || 'cash'}`);
   });
   lines.push('');
   lines.push('--- EXPENSES ---');
@@ -29,6 +29,15 @@ function generateCSV(businessName: string, sales: any[], expenses: any[], dateRa
 }
 
 export default function ReportsScreen() {
+  const { sales, expenses, user } = useApp();
+  const [period, setPeriod] = useMemo(() => ['week' as const, () => {}], []);
+  // Actually need state:
+  const { useState } = require('react');
+
+  return <ReportsScreenInner />;
+}
+
+function ReportsScreenInner() {
   const { sales, expenses, user } = useApp();
   const [period, setPeriod] = useState<'week' | 'month'>('week');
 
@@ -60,11 +69,51 @@ export default function ReportsScreen() {
     return data;
   }, [sales, expenses, period]);
 
+  // Payment method breakdown
+  const paymentBreakdown = useMemo(() => {
+    const map: Record<string, number> = {};
+    filteredSales.forEach(s => { map[s.paymentMethod || 'cash'] = (map[s.paymentMethod || 'cash'] || 0) + s.totalPrice; });
+    return map;
+  }, [filteredSales]);
+
+  const paymentColors: Record<string, string> = { cash: 'text-primary', momo: 'text-accent', bank: 'text-info', credit: 'text-destructive' };
+  const paymentLabels: Record<string, string> = { cash: 'Cash', momo: 'MoMo', bank: 'Bank Transfer', credit: 'Credit' };
+
   const expenseBreakdown = useMemo(() => {
     const map: Record<string, number> = {};
     filteredExpenses.forEach(e => { map[e.category] = (map[e.category] || 0) + e.amount; });
     return Object.entries(map).sort((a, b) => b[1] - a[1]);
   }, [filteredExpenses]);
+
+  // Sales Forecast
+  const forecast = useMemo(() => {
+    const last7 = [];
+    let strongestDay = { name: '', amount: 0 };
+    let quietestDay = { name: '', amount: Infinity };
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().split('T')[0];
+      const dayName = d.toLocaleDateString('en-GB', { weekday: 'long' });
+      const dayTotal = sales.filter(s => s.date.split('T')[0] === key).reduce((sum, s) => sum + s.totalPrice, 0);
+      last7.push(dayTotal);
+      if (dayTotal > strongestDay.amount) strongestDay = { name: dayName, amount: dayTotal };
+      if (dayTotal < quietestDay.amount) quietestDay = { name: dayName, amount: dayTotal };
+    }
+    if (quietestDay.amount === Infinity) quietestDay = { name: '', amount: 0 };
+    const daysWithData = last7.filter(d => d > 0).length;
+    if (daysWithData < 7) return { amount: 0, enough: false, strongest: strongestDay, quietest: quietestDay };
+    const avg = last7.reduce((a, b) => a + b, 0) / 7;
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dayOfWeek = tomorrow.getDay();
+    let multiplier = 1.0;
+    if (dayOfWeek === 5) multiplier = 1.2;
+    else if (dayOfWeek === 6) multiplier = 1.3;
+    else if (dayOfWeek === 1) multiplier = 0.8;
+    else if (dayOfWeek === 0) multiplier = 0.6;
+    return { amount: avg * multiplier, enough: true, strongest: strongestDay, quietest: quietestDay };
+  }, [sales]);
 
   const dateRange = useMemo(() => {
     const end = new Date();
@@ -78,21 +127,18 @@ export default function ReportsScreen() {
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `bizora-report-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    a.href = url; a.download = `bizora-report-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click(); URL.revokeObjectURL(url);
   };
 
   const handleShareWhatsApp = () => {
     const text = [
-      `📊 Bizora Report - ${user?.businessName || 'My Business'}`,
+      `Bizora Report - ${user?.businessName || 'My Business'}`,
       `Period: ${dateRange}`,
-      `💰 Sales: ${formatCurrency(totalSales)}`,
-      `💸 Expenses: ${formatCurrency(totalExpenses)}`,
-      `📈 Profit: ${formatCurrency(profit)}`,
-      '',
-      'Generated by Bizora 🚀',
+      `Sales: ${formatCurrency(totalSales)}`,
+      `Expenses: ${formatCurrency(totalExpenses)}`,
+      `Profit: ${formatCurrency(profit)}`,
+      '', 'Generated by Bizora',
     ].join('\n');
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
@@ -105,21 +151,17 @@ export default function ReportsScreen() {
 
       {/* Period Toggle */}
       <div className="flex bg-secondary rounded-full p-1 mb-6">
-        <button
-          onClick={() => setPeriod('week')}
-          className={`flex-1 h-10 rounded-full font-semibold text-sm transition-all ${period === 'week' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
-        >
+        <button onClick={() => setPeriod('week')}
+          className={`flex-1 h-10 rounded-full font-semibold text-sm transition-all ${period === 'week' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>
           This Week
         </button>
-        <button
-          onClick={() => setPeriod('month')}
-          className={`flex-1 h-10 rounded-full font-semibold text-sm transition-all ${period === 'month' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}
-        >
+        <button onClick={() => setPeriod('month')}
+          className={`flex-1 h-10 rounded-full font-semibold text-sm transition-all ${period === 'month' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>
           This Month
         </button>
       </div>
 
-      {/* Chart - above summary cards */}
+      {/* Chart */}
       <div className="bg-card rounded-xl border p-4 mb-6 kente-border">
         <h3 className="font-bold text-sm mb-3 text-foreground">Daily Overview</h3>
         <ResponsiveContainer width="100%" height={180}>
@@ -136,18 +178,33 @@ export default function ReportsScreen() {
       {/* Summary Cards */}
       <motion.div variants={{ hidden: {}, show: { transition: { staggerChildren: 0.1 } } }} initial="hidden" animate="show" className="grid grid-cols-3 gap-3 mb-6">
         <motion.div variants={fadeUp} className="stat-card bg-primary kente-border">
-          <p className="text-xs font-medium text-primary-foreground/70 mb-1">💰 Sales</p>
+          <p className="text-xs font-medium text-primary-foreground/70 mb-1">Sales</p>
           <p className="text-base font-extrabold text-primary-foreground currency">{formatCompact(totalSales)}</p>
         </motion.div>
         <motion.div variants={fadeUp} className="stat-card bg-destructive kente-border">
-          <p className="text-xs font-medium text-destructive-foreground/70 mb-1">💸 Expenses</p>
+          <p className="text-xs font-medium text-destructive-foreground/70 mb-1">Expenses</p>
           <p className="text-base font-extrabold text-destructive-foreground currency">{formatCompact(totalExpenses)}</p>
         </motion.div>
         <motion.div variants={fadeUp} className={`stat-card kente-border ${profit >= 0 ? 'bg-primary' : 'bg-destructive'}`}>
-          <p className={`text-xs font-medium mb-1 ${profit >= 0 ? 'text-primary-foreground/70' : 'text-destructive-foreground/70'}`}>📈 Profit</p>
+          <p className={`text-xs font-medium mb-1 ${profit >= 0 ? 'text-primary-foreground/70' : 'text-destructive-foreground/70'}`}>Profit</p>
           <p className={`text-base font-extrabold currency ${profit >= 0 ? 'text-primary-foreground' : 'text-destructive-foreground'}`}>{formatCompact(profit)}</p>
         </motion.div>
       </motion.div>
+
+      {/* Payment Breakdown */}
+      {Object.keys(paymentBreakdown).length > 0 && (
+        <div className="bg-card rounded-xl border p-4 mb-6">
+          <h3 className="font-bold text-sm mb-3 text-foreground">Payment Methods</h3>
+          <div className="space-y-2">
+            {Object.entries(paymentBreakdown).map(([method, amt]) => (
+              <div key={method} className="flex justify-between items-center">
+                <span className="text-sm text-foreground">{paymentLabels[method] || method}</span>
+                <span className={`text-sm font-bold currency ${paymentColors[method] || 'text-foreground'}`}>{formatCompact(amt)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Expense Breakdown */}
       {expenseBreakdown.length > 0 && (
@@ -164,48 +221,35 @@ export default function ReportsScreen() {
         </div>
       )}
 
-      {/* Export Buttons */}
-      <div className="grid grid-cols-2 gap-3 mb-6">
-        <button
-          onClick={handleExportCSV}
-          className="h-12 rounded-xl bg-accent text-accent-foreground font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.97] transition-transform tap-target"
-        >
-          <Download size={18} /> Export CSV
-        </button>
-        <button
-          onClick={handleShareWhatsApp}
-          className="h-12 rounded-xl bg-primary text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.97] transition-transform tap-target"
-        >
-          <Share2 size={18} /> WhatsApp
-        </button>
+      {/* Sales Forecast */}
+      <div className="bg-card rounded-xl border p-4 mb-6 border-l-[3px] border-l-primary">
+        <h3 className="font-bold text-sm mb-2 text-foreground">Tomorrow's Forecast</h3>
+        {forecast.enough ? (
+          <>
+            <p className="text-2xl font-extrabold text-accent currency mb-1">{formatCurrency(forecast.amount)}</p>
+            <p className="text-xs text-muted-foreground mb-2">Based on your last 7 days of sales</p>
+            {forecast.strongest.name && (
+              <p className="text-xs text-muted-foreground">Strongest day: {forecast.strongest.name} with {formatCurrency(forecast.strongest.amount)}</p>
+            )}
+            {forecast.quietest.name && (
+              <p className="text-xs text-muted-foreground">Quietest day: {forecast.quietest.name} with {formatCurrency(forecast.quietest.amount)}</p>
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">Record at least 7 days of sales for a forecast</p>
+        )}
       </div>
 
-      {/* Bizora Pro Teaser Card */}
-      <div className="relative rounded-xl bg-primary p-5 overflow-hidden" style={{ border: '2px solid hsl(37, 89%, 51%)' }}>
-        <div className="absolute inset-0 backdrop-blur-[2px] pointer-events-none" />
-        <div className="relative">
-          <div className="flex items-center gap-2 mb-2">
-            <Crown size={20} className="text-accent" />
-            <h3 className="font-extrabold text-primary-foreground text-lg">Bizora Pro ✨</h3>
-          </div>
-          <p className="text-sm text-primary-foreground/80 mb-4">Unlock AI insights, sales forecasts & WhatsApp reports</p>
-
-          <div className="space-y-2.5 mb-4 opacity-70">
-            <div className="flex items-center gap-2 text-sm text-primary-foreground/90">
-              <Lock size={14} className="text-accent" /> <span>Daily AI tip for your business</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-primary-foreground/90">
-              <Lock size={14} className="text-accent" /> <span>Weekly profit forecast</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-primary-foreground/90">
-              <Lock size={14} className="text-accent" /> <span>Send report to WhatsApp</span>
-            </div>
-          </div>
-
-          <span className="inline-block bg-accent text-accent-foreground text-xs font-bold px-3 py-1 rounded-full">
-            Coming Soon
-          </span>
-        </div>
+      {/* Export Buttons */}
+      <div className="grid grid-cols-2 gap-3 mb-6">
+        <button onClick={handleExportCSV}
+          className="h-12 rounded-xl bg-accent text-accent-foreground font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.97] transition-transform tap-target">
+          <Download size={18} /> Export CSV
+        </button>
+        <button onClick={handleShareWhatsApp}
+          className="h-12 rounded-xl bg-primary text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.97] transition-transform tap-target">
+          <Share2 size={18} /> WhatsApp
+        </button>
       </div>
     </div>
   );
