@@ -1,11 +1,11 @@
 import { formatCurrency } from '@/lib/format';
-import type { Sale } from '@/context/AppContext';
+import type { Sale } from '@/context/types';
+import { useApp } from '@/context/AppContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Props {
   sale: Sale | null;
   onClose: () => void;
-  businessName: string;
 }
 
 function generateReceiptNumber(id: string): string {
@@ -21,26 +21,20 @@ function formatReceiptDate(iso: string) {
   };
 }
 
-export default function ReceiptSheet({ sale, onClose, businessName }: Props) {
+const paymentLabels: Record<string, string> = {
+  cash: 'Cash', momo: 'MTN MoMo', bank: 'Bank Transfer', credit: 'Credit',
+};
+
+export default function ReceiptSheet({ sale, onClose }: Props) {
+  const { user } = useApp();
   if (!sale) return null;
 
   const { date, time } = formatReceiptDate(sale.date);
   const receiptNo = generateReceiptNumber(sale.id);
+  const businessName = user?.businessName || 'Bizora';
+  const customerDisplay = sale.customerName || 'Walk-in Customer';
 
-  const receiptText = [
-    'BIZORA - Official Receipt',
-    `Receipt: ${receiptNo}`,
-    `Date: ${date} ${time}`,
-    '---',
-    `Item: ${sale.productName}`,
-    `Qty: ${sale.quantity}`,
-    `Price/unit: ${formatCurrency(sale.pricePerUnit)}`,
-    `Total: ${formatCurrency(sale.totalPrice)}`,
-    '---',
-    `Business: ${businessName}`,
-    'Thank you for your business! 🙏',
-  ].join('\n');
-
+  const receiptText = `Hello ${customerDisplay}, here is your receipt from ${businessName}. Receipt No: ${receiptNo} — Total: ${formatCurrency(sale.totalPrice)} — Date: ${date}. Official digital receipts coming soon on Bizora.`;
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(receiptText)}`;
 
   return (
@@ -59,13 +53,21 @@ export default function ReceiptSheet({ sale, onClose, businessName }: Props) {
             exit={{ y: 400 }}
             transition={{ type: 'spring', damping: 25 }}
             onClick={e => e.stopPropagation()}
-            className="w-full max-w-md bg-card rounded-t-2xl p-6 max-h-[70vh] overflow-y-auto"
+            className="w-full max-w-md bg-card rounded-t-2xl p-6 max-h-[80vh] overflow-y-auto"
           >
-            {/* Receipt Content */}
             <div className="font-mono text-center">
-              <h2 className="text-2xl font-extrabold text-foreground tracking-wider">BIZORA</h2>
-              <p className="text-xs text-muted-foreground mt-1">Official Receipt</p>
+              <h2 className="text-2xl font-extrabold text-foreground tracking-wider">
+                {businessName.toUpperCase()}
+              </h2>
+              {user?.location && (
+                <p className="text-xs text-muted-foreground mt-1">{user.location}</p>
+              )}
+              {user?.phone && (
+                <p className="text-xs text-muted-foreground">{user.phone}</p>
+              )}
               <div className="my-3 border-t-2 border-dashed border-muted" />
+
+              <p className="text-sm text-muted-foreground mb-2">{customerDisplay}</p>
 
               <div className="text-left space-y-2 text-sm">
                 <div className="flex justify-between">
@@ -79,6 +81,10 @@ export default function ReceiptSheet({ sale, onClose, businessName }: Props) {
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Price/unit</span>
                   <span className="font-semibold text-foreground currency">{formatCurrency(sale.pricePerUnit)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Payment</span>
+                  <span className="font-semibold text-foreground">{paymentLabels[sale.paymentMethod] || 'Cash'}</span>
                 </div>
               </div>
 
@@ -97,23 +103,18 @@ export default function ReceiptSheet({ sale, onClose, businessName }: Props) {
                 <p>Receipt: {receiptNo}</p>
               </div>
 
-              <p className="mt-4 text-xs text-primary font-medium">Thank you for your business! 🙏</p>
+              <p className="mt-4 text-xs text-primary font-medium">Thank you for your business</p>
+              <p className="mt-1 text-[10px] text-muted-foreground">Powered by Bizora</p>
             </div>
 
-            {/* Actions */}
             <div className="mt-6 space-y-3">
-              <a
-                href={whatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full h-12 rounded-xl bg-primary text-primary-foreground font-bold text-center leading-[48px] tap-target"
-              >
+              <a href={whatsappUrl} target="_blank" rel="noopener noreferrer"
+                className="block w-full h-12 rounded-xl bg-primary text-primary-foreground font-bold text-center leading-[48px] tap-target">
                 Share via WhatsApp
               </a>
-              <button
-                onClick={onClose}
-                className="w-full h-12 rounded-xl bg-secondary text-foreground font-semibold tap-target"
-              >
+              <p className="text-[10px] text-center text-muted-foreground">Full digital receipts available when Bizora launches</p>
+              <button onClick={onClose}
+                className="w-full h-12 rounded-xl bg-secondary text-foreground font-semibold tap-target">
                 Close
               </button>
             </div>

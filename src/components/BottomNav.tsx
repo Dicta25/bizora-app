@@ -1,12 +1,13 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, Receipt, Package, BarChart3, Crown } from 'lucide-react';
+import { Home, Receipt, Package, Users, BarChart3 } from 'lucide-react';
 import { useApp } from '@/context/AppContext';
 
 const tabs = [
   { to: '/', icon: Home, label: 'Home' },
   { to: '/record/sale', icon: Receipt, label: 'Record' },
   { to: '/inventory', icon: Package, label: 'Inventory', showLowStock: true },
-  { to: '/reports', icon: BarChart3, label: 'Reports', crown: true },
+  { to: '/customers', icon: Users, label: 'Customers' },
+  { to: '/reports', icon: BarChart3, label: 'Reports' },
 ];
 
 export default function BottomNav() {
@@ -28,15 +29,12 @@ export default function BottomNav() {
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-10 h-[3px] rounded-full bg-accent" />
               )}
               <div className="relative">
-                <tab.icon size={22} className={isActive ? 'text-primary' : 'text-muted-foreground'} />
-                {tab.crown && (
-                  <Crown size={10} className="absolute -top-1.5 -right-2 text-accent" />
-                )}
+                <tab.icon size={20} className={isActive ? 'text-primary' : 'text-muted-foreground'} />
                 {tab.showLowStock && lowStockProducts.length > 0 && (
                   <div className="absolute -top-1 -right-1.5 w-2.5 h-2.5 rounded-full bg-destructive" />
                 )}
               </div>
-              <span className={`text-[11px] mt-0.5 font-semibold ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
+              <span className={`text-[10px] mt-0.5 font-semibold ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
                 {tab.label}
               </span>
             </NavLink>
