@@ -33,10 +33,16 @@ export default function AppDrawer({ open, onClose }: AppDrawerProps) {
   const navigate = useNavigate();
   const [showTheme, setShowTheme] = useState(false);
   const [showReminder, setShowReminder] = useState(false);
+  const [notifDenied, setNotifDenied] = useState(false);
 
   const handleNav = (path: string) => { navigate(path); onClose(); };
 
-  const handleLogout = () => { onClose(); logout(); };
+  const handleLogout = () => {
+    onClose();
+    logout();
+    // Replace history so back button can't return to dashboard
+    window.history.replaceState(null, '', '/');
+  };
 
   const handleShareCatalog = () => {
     const inStock = products.filter(p => p.stock > 0);
@@ -52,6 +58,46 @@ export default function AppDrawer({ open, onClose }: AppDrawerProps) {
     ];
     window.open(`https://wa.me/?text=${encodeURIComponent(lines.join('\n'))}`, '_blank');
     onClose();
+  };
+
+  const handlePinAction = () => {
+    if (pin) {
+      // Remove PIN
+      setPin(null);
+    } else {
+      // Open PIN setup screen via custom event
+      onClose();
+      setTimeout(() => window.dispatchEvent(new Event('open-pin-setup')), 100);
+    }
+  };
+
+  const handleReminderToggle = async () => {
+    if (!reminderEnabled) {
+      // Check if iOS
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      if (isIOS) {
+        // iOS doesn't support push notifications well - just enable the state for banner fallback
+        setReminderEnabled(true);
+        setNotifDenied(false);
+        return;
+      }
+
+      if ('Notification' in window) {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          setReminderEnabled(true);
+          setNotifDenied(false);
+        } else {
+          setNotifDenied(true);
+        }
+      } else {
+        // No notification API - enable for iOS-style banner fallback
+        setReminderEnabled(true);
+      }
+    } else {
+      setReminderEnabled(false);
+      setNotifDenied(false);
+    }
   };
 
   return (
@@ -133,16 +179,13 @@ export default function AppDrawer({ open, onClose }: AppDrawerProps) {
                 <div className="px-5 pb-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-foreground">Enable</span>
-                    <button onClick={() => {
-                      if (!reminderEnabled) {
-                        Notification.requestPermission().then(p => { if (p === 'granted') setReminderEnabled(true); });
-                      } else {
-                        setReminderEnabled(false);
-                      }
-                    }} className={`w-12 h-7 rounded-full transition-colors ${reminderEnabled ? 'bg-primary' : 'bg-muted'}`}>
+                    <button onClick={handleReminderToggle} className={`w-12 h-7 rounded-full transition-colors ${reminderEnabled ? 'bg-primary' : 'bg-muted'}`}>
                       <div className={`w-5 h-5 rounded-full bg-card shadow transition-transform mx-1 mt-1 ${reminderEnabled ? 'translate-x-5' : ''}`} />
                     </button>
                   </div>
+                  {notifDenied && (
+                    <p className="text-xs text-destructive">Please enable notifications in your browser settings</p>
+                  )}
                   {reminderEnabled && (
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground">Time:</span>
@@ -154,15 +197,9 @@ export default function AppDrawer({ open, onClose }: AppDrawerProps) {
               )}
 
               {/* PIN */}
-              <button onClick={() => {
-                if (pin) {
-                  setPin(null);
-                } else {
-                  // Navigate to PIN setup - would need a separate flow
-                  onClose();
-                }
-              }} className="w-full flex items-center gap-3 px-5 py-3.5 text-left text-sm font-semibold text-foreground hover:bg-secondary/60 transition-colors">
-                <Lock size={18} className="text-muted-foreground" /> {pin ? 'Remove PIN' : 'Set PIN'}
+              <button onClick={handlePinAction}
+                className="w-full flex items-center gap-3 px-5 py-3.5 text-left text-sm font-semibold text-foreground hover:bg-secondary/60 transition-colors">
+                <Lock size={18} className="text-muted-foreground" /> {pin ? 'Change PIN' : 'Set PIN'}
               </button>
             </div>
 

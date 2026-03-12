@@ -1,21 +1,44 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '@/context/AppContext';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
 const BUSINESS_TYPES = ['Trader', 'Salon', 'Food Vendor', 'Seamstress', 'Other'];
 
 export default function OnboardingScreen() {
-  const { setUser, enterDemoMode } = useApp();
+  const { setUser, enterDemoMode, user } = useApp();
+  const navigate = useNavigate();
   const [phone, setPhone] = useState('');
   const [businessName, setBusinessName] = useState('');
   const [businessType, setBusinessType] = useState('');
   const [location, setLocation] = useState('');
+
+  // If user already exists, redirect to dashboard
+  useEffect(() => {
+    if (user) {
+      navigate('/', { replace: true });
+    }
+  }, [user, navigate]);
+
+  // Ensure fields are always empty on mount (after logout)
+  useEffect(() => {
+    setPhone('');
+    setBusinessName('');
+    setBusinessType('');
+    setLocation('');
+  }, []);
 
   const canSubmit = phone.length >= 10 && businessName && businessType && location;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
     setUser({ phone, businessName, businessType, location });
+    navigate('/', { replace: true });
+  };
+
+  const handleDemo = () => {
+    enterDemoMode();
+    navigate('/', { replace: true });
   };
 
   return (
@@ -65,7 +88,7 @@ export default function OnboardingScreen() {
             className="w-full h-14 rounded-xl bg-primary text-primary-foreground font-bold text-lg mt-4 tap-target disabled:opacity-40 transition-all active:scale-[0.98]">
             Get Started
           </button>
-          <button onClick={enterDemoMode}
+          <button onClick={handleDemo}
             className="w-full text-center text-sm text-muted-foreground underline underline-offset-2 mt-2 tap-target">
             Try Demo Mode
           </button>

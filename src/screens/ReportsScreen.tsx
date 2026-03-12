@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { formatCurrency, formatCompact } from '@/lib/format';
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, PieChart, Pie, Cell, Legend } from 'recharts';
 import { motion } from 'framer-motion';
-import { Download, Share2 } from 'lucide-react';
+import { Download, Share2, TrendingUp, TrendingDown } from 'lucide-react';
 
 function generateCSV(businessName: string, sales: any[], expenses: any[], dateRange: string, totalS: number, totalE: number, profit: number) {
   const lines: string[] = [];
@@ -26,6 +26,18 @@ function generateCSV(businessName: string, sales: any[], expenses: any[], dateRa
     lines.push(`${e.date.split('T')[0]},${e.description},${e.category},${e.amount}`);
   });
   return lines.join('\n');
+}
+
+const EXPENSE_COLORS: Record<string, string> = {
+  'Stock': '#0A6640',
+  'Transport': '#F2A115',
+  'Rent': '#1565C0',
+  'Utilities': '#E65100',
+  'Other': '#7A736A',
+};
+
+function getExpenseColor(category: string): string {
+  return EXPENSE_COLORS[category] || EXPENSE_COLORS['Other'];
 }
 
 export default function ReportsScreen() {
@@ -69,11 +81,14 @@ export default function ReportsScreen() {
   const paymentColors: Record<string, string> = { cash: 'text-primary', momo: 'text-accent', bank: 'text-info', credit: 'text-destructive' };
   const paymentLabels: Record<string, string> = { cash: 'Cash', momo: 'MoMo', bank: 'Bank Transfer', credit: 'Credit' };
 
-  const expenseBreakdown = useMemo(() => {
+  // Expense breakdown for pie chart
+  const expensePieData = useMemo(() => {
     const map: Record<string, number> = {};
     filteredExpenses.forEach(e => { map[e.category] = (map[e.category] || 0) + e.amount; });
-    return Object.entries(map).sort((a, b) => b[1] - a[1]);
+    return Object.entries(map).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
   }, [filteredExpenses]);
+
+  const expenseTotal = filteredExpenses.reduce((s, e) => s + e.amount, 0);
 
   const forecast = useMemo(() => {
     let strongestDay = { name: '', amount: 0 };
@@ -104,6 +119,35 @@ export default function ReportsScreen() {
     return { amount: avg * mult, enough: true, strongest: strongestDay, quietest: quietestDay };
   }, [sales]);
 
+  // Monthly comparison
+  const monthlyComparison = useMemo(() => {
+    const now = new Date();
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+    const thisMonthSales = sales.filter(s => new Date(s.date) >= thisMonthStart).reduce((sum, s) => sum + s.totalPrice, 0);
+    const thisMonthExpenses = expenses.filter(e => new Date(e.date) >= thisMonthStart).reduce((sum, e) => sum + e.amount, 0);
+    const thisMonthTransactions = sales.filter(s => new Date(s.date) >= thisMonthStart).length + expenses.filter(e => new Date(e.date) >= thisMonthStart).length;
+
+    const lastMonthSales = sales.filter(s => { const d = new Date(s.date); return d >= lastMonthStart && d <= lastMonthEnd; }).reduce((sum, s) => sum + s.totalPrice, 0);
+    const lastMonthExpenses = expenses.filter(e => { const d = new Date(e.date); return d >= lastMonthStart && d <= lastMonthEnd; }).reduce((sum, e) => sum + e.amount, 0);
+    const lastMonthTransactions = sales.filter(s => { const d = new Date(s.date); return d >= lastMonthStart && d <= lastMonthEnd; }).length + expenses.filter(e => { const d = new Date(e.date); return d >= lastMonthStart && d <= lastMonthEnd; }).length;
+
+    const hasLastMonth = lastMonthSales > 0 || lastMonthExpenses > 0;
+
+    return {
+      hasLastMonth,
+      thisMonth: { sales: thisMonthSales, expenses: thisMonthExpenses, profit: thisMonthSales - thisMonthExpenses, transactions: thisMonthTransactions },
+      lastMonth: { sales: lastMonthSales, expenses: lastMonthExpenses, profit: lastMonthSales - lastMonthExpenses, transactions: lastMonthTransactions },
+    };
+  }, [sales, expenses]);
+
+  const pctChange = (curr: number, prev: number) => {
+    if (prev === 0) return curr > 0 ? 100 : 0;
+    return Math.round(((curr - prev) / prev) * 100);
+  };
+
   const dateRange = useMemo(() => {
     const end = new Date();
     const start = new Date();
@@ -133,6 +177,24 @@ export default function ReportsScreen() {
   };
 
   const fadeUp = { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: 0.4 } } };
+
+  const ComparisonRow = ({ label, thisVal, lastVal }: { label: string; thisVal: number; lastVal: number }) => {
+    const change = pctChange(thisVal, lastVal);
+    const isUp = change >= 0;
+    return (
+      <div className="flex items-center justify-between py-2">
+        <span className="text-sm text-foreground">{label}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-bold text-foreground currency">{formatCompact(thisVal)}</span>
+          <span className="text-xs text-muted-foreground">vs {formatCompact(lastVal)}</span>
+          <span className={`flex items-center gap-0.5 text-xs font-semibold ${isUp ? 'text-primary' : 'text-destructive'}`}>
+            {isUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+            {change > 0 ? '+' : ''}{change}%
+          </span>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="px-4 pt-6 pb-24">
@@ -191,17 +253,47 @@ export default function ReportsScreen() {
         </div>
       )}
 
-      {expenseBreakdown.length > 0 && (
+      {/* Expense Categories Pie Chart */}
+      {expensePieData.length > 0 ? (
         <div className="bg-card rounded-xl border p-4 mb-6">
-          <h3 className="font-bold text-sm mb-3 text-foreground">Expense Breakdown</h3>
-          <div className="space-y-2">
-            {expenseBreakdown.map(([cat, amt]) => (
-              <div key={cat} className="flex justify-between items-center">
-                <span className="text-sm text-foreground">{cat}</span>
-                <span className="text-sm font-bold text-destructive currency">{formatCompact(amt)}</span>
+          <h3 className="font-bold text-sm mb-3 text-foreground">Where Your Money Goes</h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie
+                data={expensePieData}
+                cx="50%"
+                cy="50%"
+                outerRadius={70}
+                dataKey="value"
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                labelLine={false}
+                fontSize={11}
+              >
+                {expensePieData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={getExpenseColor(entry.name)} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value: number) => formatCurrency(value)} />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="space-y-1.5 mt-3">
+            {expensePieData.map(item => (
+              <div key={item.name} className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: getExpenseColor(item.name) }} />
+                  <span className="text-foreground">{item.name}</span>
+                </div>
+                <span className="text-muted-foreground">
+                  {formatCurrency(item.value)} — {expenseTotal > 0 ? Math.round((item.value / expenseTotal) * 100) : 0}%
+                </span>
               </div>
             ))}
           </div>
+        </div>
+      ) : (
+        <div className="bg-card rounded-xl border p-4 mb-6">
+          <h3 className="font-bold text-sm mb-2 text-foreground">Where Your Money Goes</h3>
+          <p className="text-sm text-muted-foreground">No expenses recorded yet</p>
         </div>
       )}
 
@@ -220,6 +312,36 @@ export default function ReportsScreen() {
           </>
         ) : (
           <p className="text-sm text-muted-foreground">Record at least 7 days of sales for a forecast</p>
+        )}
+      </div>
+
+      {/* Monthly Comparison */}
+      <div className="bg-card rounded-xl border p-4 mb-6">
+        <h3 className="font-bold text-sm mb-3 text-foreground">Monthly Comparison</h3>
+        {monthlyComparison.hasLastMonth ? (
+          <>
+            <ComparisonRow label="Total Sales" thisVal={monthlyComparison.thisMonth.sales} lastVal={monthlyComparison.lastMonth.sales} />
+            <div className="h-px bg-border" />
+            <ComparisonRow label="Total Expenses" thisVal={monthlyComparison.thisMonth.expenses} lastVal={monthlyComparison.lastMonth.expenses} />
+            <div className="h-px bg-border" />
+            <ComparisonRow label="Net Profit" thisVal={monthlyComparison.thisMonth.profit} lastVal={monthlyComparison.lastMonth.profit} />
+            <div className="h-px bg-border" />
+            <ComparisonRow label="Transactions" thisVal={monthlyComparison.thisMonth.transactions} lastVal={monthlyComparison.lastMonth.transactions} />
+            <div className="mt-3 pt-2 border-t border-border">
+              {(() => {
+                const salesChange = pctChange(monthlyComparison.thisMonth.sales, monthlyComparison.lastMonth.sales);
+                return (
+                  <p className={`text-sm font-semibold ${salesChange >= 0 ? 'text-primary' : 'text-destructive'}`}>
+                    {salesChange >= 0
+                      ? `You are ${salesChange}% ahead of last month`
+                      : `You are ${Math.abs(salesChange)}% behind last month`}
+                  </p>
+                );
+              })()}
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">No data for last month yet. Keep recording to see your progress</p>
         )}
       </div>
 
