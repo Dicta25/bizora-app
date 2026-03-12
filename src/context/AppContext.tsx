@@ -88,7 +88,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setState(prev => {
       const newSale = { ...sale, id: uid() };
       let customers = prev.customers;
-      // If credit sale, update customer balance
       if (sale.paymentMethod === 'credit' && sale.customerId) {
         customers = customers.map(c =>
           c.id === sale.customerId
@@ -102,7 +101,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             : c
         );
       }
-      // Deduct stock
       const product = prev.products.find(p => p.name === sale.productName);
       let products = prev.products;
       let stockHistory = prev.stockHistory;
@@ -181,7 +179,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
-    // Clear ALL localStorage
+    // Clear ALL localStorage completely
     localStorage.clear();
     setState({ ...DEFAULT_STATE });
   }, []);

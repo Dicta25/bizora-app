@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, useNavigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { AppProvider, useApp } from "./context/AppContext";
 import OnboardingScreen from "./screens/OnboardingScreen";
@@ -12,16 +12,60 @@ import ReportsScreen from "./screens/ReportsScreen";
 import SuppliersScreen from "./screens/SuppliersScreen";
 import PINScreen from "./screens/PINScreen";
 import BottomNav from "./components/BottomNav";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 function AppRoutes() {
   const { user, pin } = useApp();
   const [pinVerified, setPinVerified] = useState(false);
+  const [showPinSetup, setShowPinSetup] = useState(false);
+  const navigate = useNavigate();
 
-  if (!user) return <OnboardingScreen />;
+  // Listen for custom event to open PIN setup from drawer
+  useEffect(() => {
+    const handler = () => setShowPinSetup(true);
+    window.addEventListener('open-pin-setup', handler);
+    return () => window.removeEventListener('open-pin-setup', handler);
+  }, []);
+
+  // Reset pinVerified when user logs out
+  useEffect(() => {
+    if (!user) {
+      setPinVerified(false);
+      setShowPinSetup(false);
+    }
+  }, [user]);
+
+  // Handle visibility change - require PIN re-entry when returning from background
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && pin && pinVerified) {
+        setPinVerified(false);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [pin, pinVerified]);
+
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="*" element={<OnboardingScreen />} />
+      </Routes>
+    );
+  }
 
   if (pin && !pinVerified) {
     return <PINScreen mode="verify" onSuccess={() => setPinVerified(true)} />;
+  }
+
+  if (showPinSetup) {
+    return (
+      <PINScreen
+        mode={pin ? 'change' : 'setup'}
+        onSuccess={() => setShowPinSetup(false)}
+        onSkip={() => setShowPinSetup(false)}
+      />
+    );
   }
 
   return (
