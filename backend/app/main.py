@@ -1,28 +1,28 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routers import auth, products, sales, expenses, customers, suppliers, admin
 from app.core.config import settings
 
-from fastapi.responses import Response
-
 app = FastAPI(title=settings.PROJECT_NAME)
+
+# Simple request logger to help debug
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    print(f"DEBUG: Incoming {request.method} to {request.url.path}")
+    response = await call_next(request)
+    print(f"DEBUG: Response status: {response.status_code}")
+    return response
 
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
     return Response(content="", media_type="image/x-icon")
 
-# Set up CORS
-origins = [
-    "http://localhost:8080",
-    "http://localhost:5173",
-    "https://bizora-app-mu.vercel.app",
-    "https://bizora-app.vercel.app",
-]
-
+# Set up CORS - Standard for Bearer Token Auth
+# Using * with allow_credentials=False is very robust for testing
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
