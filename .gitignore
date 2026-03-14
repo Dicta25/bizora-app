@@ -17,7 +17,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# lib/ - Removed to avoid ignoring src/lib in frontend. Using more specific Python env patterns instead.
 lib64/
 parts/
 sdist/
