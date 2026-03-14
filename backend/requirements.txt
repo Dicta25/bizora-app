@@ -9,3 +9,5 @@ alembic
 cors
 psycopg2-binary
 pydantic[email]
+passlib[bcrypt]
+bcrypt
