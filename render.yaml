@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: bizora-backend
+    runtime: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: bizora-db
+          property: connectionString
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: PROJECT_NAME
+        value: "Bizora API"
+      - key: PYTHON_VERSION
+        value: 3.11.0
+
+databases:
+  - name: bizora-db
+    plan: free
+    databaseName: bizora
+    user: bizora_admin
