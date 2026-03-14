@@ -3,7 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routers import auth, products, sales, expenses, customers, suppliers, admin
 from app.core.config import settings
 
+from fastapi.responses import Response
+
 app = FastAPI(title=settings.PROJECT_NAME)
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    return Response(content="", media_type="image/x-icon")
 
 # Set up CORS
 app.add_middleware(
